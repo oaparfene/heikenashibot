@@ -1,4 +1,4 @@
-from config import session, ws, api_key, api_secret
+from config import api_key, api_secret
 import time
 import hmac
 import hashlib
@@ -6,14 +6,18 @@ import requests
 import uuid
 import json
 
-#httpClient = requests.Session()
 recv_window = str(10000)
-#url = 'https://api.bybit.com'
 
+###
+# @definition:
+#   fetches current USDT balance
+# @return:
+#   USDT balance
+###
 def getBalance():
-    url = 'https://api.bybit.com/contract/v3/private/account/wallet/balance' #get wallet balance
+    url = 'https://api.bybit.com/contract/v3/private/account/wallet/balance'
     timestamp = int(time.time())* 1000
-    param_str = f'{timestamp}{api_key}{recv_window}'#category=option&symbol=BTC-29JUL22-25000-C'
+    param_str = f'{timestamp}{api_key}{recv_window}'
 
     byte_key = bytes(api_secret, 'UTF-8')
     msg = param_str.encode()
@@ -37,13 +41,25 @@ def getBalance():
             print(assetList[i])
             return float(assetList[i]['walletBalance'])
 
+###
+# @definition:
+#   fetches current price of asset
+# @params:
+#   pair<string>: name of pair (i.e 'BTCUSDT')
+# @return:
+#   last price of pair
+###
 def getPairPrice(pair):
     url = f'https://api.bybit.com/derivatives/v3/public/tickers?category=linear&symbol={pair}'
     data = requests.get(url)
     data = data.json()
     data = data['result']['list'][0]['lastPrice']
-    print(data)
+    return data
 
+###
+# @definition:
+#   cancels all open orders
+###
 def cancelAllOrders():
     url = 'https://api.bybit.com/contract/v3/private/order/cancel-all'
     timestamp = int(time.time())* 1000
@@ -70,8 +86,13 @@ def cancelAllOrders():
 
     data = requests.post(url, headers = headers, json = body)
     data = data.json()
-    print (data)
 
+###
+# @definition:
+#   fetches all current open positions
+# @return:
+#   list of all open positions
+###
 def getPosition():
     url = 'https://api.bybit.com/contract/v3/private/position/list?settleCoin=USDT&dataFilter=valid'
     timestamp = int(time.time())* 1000
@@ -93,14 +114,15 @@ def getPosition():
 
     data = requests.get(url, headers = headers)
     data = data.json()
-    print(data)
     return data['result']['list']
 
+###
+# @definition:
+#   closes all current derivative positions on USDT pairs
+###
 def closeAllPositions():
     positions = getPosition()
     for i in positions:
-        print(i)
-
         url = 'https://api.bybit.com/contract/v3/private/order/create' #create private order
         timestamp = int(time.time())* 1000
         param_str = f'{timestamp}{api_key}{recv_window}'
@@ -136,7 +158,7 @@ def closeAllPositions():
 
 
 
-
+# work in progress; limit orders not fully implemented
 def placeOrder(side, order_type, pair, quantity, tp, sl):
     url = 'https://api.bybit.com/contract/v3/private/order/create' #create private order
     timestamp = int(time.time())* 1000
@@ -166,7 +188,7 @@ def placeOrder(side, order_type, pair, quantity, tp, sl):
         "triggerPrice": "12",
         "triggerBy": "MarkPrice",
         "timeInForce": "GoodTillCancel",
-        "orderLinkId": "a004",
+        "orderLinkId": "a004", # todo: generate unique id every time
         "takeProfit": "13",
         "stopLoss": "11",
         "reduce_only": 'false',
@@ -192,8 +214,18 @@ def placeOrder(side, order_type, pair, quantity, tp, sl):
     data = data.json()
     print (data)
 
+###
+# @definition:
+#   fetches klines (OHLC data) from bybit api
+# @params:
+#   symbol<string>: symbol of pair (i.e. "BTCUSDT")
+#   interval<enum>: kline interval; enum: 1 3 5 15 30 60 120 240 360 720 "D" "M" "W"
+#   lookback<int>: amount of candles before current price you want to fetch
+# @return:
+#   list of objects containing OHLC data for each candle (length=lookback)
+###
 def getKlines(symbol, interval=15, lookback=10):
-    url = 'https://api.bybit.com/derivatives/v3/public/kline' #create private order
+    url = 'https://api.bybit.com/derivatives/v3/public/kline'
     timestamp = int(time.time())* 1000
     start_timestamp = timestamp - (interval*60*1000*(lookback))
 
@@ -201,15 +233,4 @@ def getKlines(symbol, interval=15, lookback=10):
     
     data = requests.get(url)
     data = data.json()
-    #print(data)
-    #print(len(data['result']['list']))
     return data['result']['list']
-
-
-
-
-getKlines(symbol="SOLUSDT")
-#placeOrder('Buy', 'Limit', 'SOLUSDT', 1, 15, 11)
-#closeAllPositions()
-#getBalance()
-#cancelAllOrders()
