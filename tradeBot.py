@@ -1,3 +1,5 @@
+# this is a bybit api wrapper
+
 from config import api_key, api_secret
 import time
 import hmac
